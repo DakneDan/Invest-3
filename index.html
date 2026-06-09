@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="cs" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Investiční Simulátor Pro 2.5 📊</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none;
+            width: 22px; height: 22px; border-radius: 50%;
+            background: #3b82f6; cursor: pointer;
+            box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col justify-between selection:bg-blue-500/30">
+
+    <header class="bg-slate-900/80 backdrop-blur border-b border-slate-800 p-4 sticky top-0 z-50 shadow-md">
+        <div class="max-w-md mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <div class="bg-blue-600/20 p-2 rounded-lg border border-blue-500/30">
+                    <i data-lucide="line-chart" class="w-5 h-5 text-blue-400"></i>
+                </div>
+                <div>
+                    <h1 class="text-base font-black tracking-tight bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">FINANČNÍ SIMULÁTOR</h1>
+                    <p class="text-[10px] text-slate-400 font-medium">Lekce z tržní opatrnosti</p>
+                </div>
+            </div>
+            <div id="turn-badge" class="bg-slate-800 text-slate-300 px-3 py-1.5 rounded-xl text-xs font-bold border border-slate-700 shadow-inner flex items-center gap-1.5">
+                <i data-lucide="calendar" class="w-3.5 h-3.5 text-blue-400"></i>
+                <span>Rok: 0 / 10</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-md w-full mx-auto p-4 space-y-5 flex-grow mb-28">
+        
+        <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-[11px] text-slate-400 uppercase tracking-wider font-bold">Celková hodnota majetku</p>
+                    <div id="total-wealth" class="text-3xl font-black text-emerald-400 tracking-tight">0 Kč</div>
+                </div>
+                <div class="text-right">
+                    <p class="text-[11px] text-slate-400 uppercase tracking-wider font-bold">Vlastní vklady</p>
+                    <div id="total-deposits" class="text-lg font-bold text-slate-300">0 Kč</div>
+                </div>
+            </div>
+            
+            <div id="profit-badge-container" class="flex justify-between items-center pt-2 border-t border-slate-800/80">
+                <span class="text-xs text-slate-400">Čistý zisk z trhů:</span>
+                <span id="total-profit" class="text-xs font-black text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/20">0 Kč (0%)</span>
+            </div>
+        </section>
+
+        <section id="setup-income-section" class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+            <div class="flex justify-between items-center">
+                <h2 id="setup-title" class="text-xs font-black text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <i data-lucide="coins" class="w-4 h-4 text-amber-400"></i> Krok 1: Nastavení rozpočtu
+                </h2>
+                <span id="setup-calc-badge" class="text-xs font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded"></span>
+            </div>
+            <div id="setup-control-container" class="space-y-2"></div>
+        </section>
+
+        <section id="cashflow-allocator" class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-4">
+            <div class="flex justify-between items-center">
+                <h2 class="text-xs font-black text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <i data-lucide="wallet" class="w-4 h-4 text-blue-400"></i> Krok 2: Rozdělení peněz do cílů
+                </h2>
+                <span id="cashflow-remaining" class="text-xs font-black text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded">Zbývá: 0 Kč</span>
+            </div>
+            
+            <div class="space-y-3 pt-2">
+                <div class="space-y-1">
+                    <div class="flex justify-between text-xs"><span>🎯 Cíl 3 roky (Konzervativní)</span><span id="p3-cash-val" class="font-bold text-blue-400">0 Kč</span></div>
+                    <input type="range" id="cash-p3" min="0" step="500" value="0" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none accent-blue-500" oninput="allocateCashflow()">
+                </div>
+                <div class="space-y-1">
+                    <div class="flex justify-between text-xs"><span>🎯 Cíl 5 let (Vyvážený)</span><span id="p5-cash-val" class="font-bold text-blue-400">0 Kč</span></div>
+                    <input type="range" id="cash-p5" min="0" step="500" value="0" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none accent-blue-500" oninput="allocateCashflow()">
+                </div>
+                <div class="space-y-1">
+                    <div class="flex justify-between text-xs"><span>🎯 Cíl 10 let (Dynamický)</span><span id="p10-cash-val" class="font-bold text-blue-400">0 Kč</span></div>
+                    <input type="range" id="cash-p10" min="0" step="500" value="0" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none accent-blue-500" oninput="allocateCashflow()">
+                </div>
+            </div>
+        </section>
+
+        <section id="news-box" class="bg-slate-900 border border-amber-500/30 rounded-2xl p-4 shadow-lg hidden relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>
+            <h3 class="text-amber-400 font-black text-xs tracking-wider uppercase flex items-center gap-2 mb-1">
+                <i data-lucide="newspaper" class="w-4 h-4"></i> Zprávy z trhů (Rok <span id="news-year">1</span>)
+            </h3>
+            <p id="news-text" class="text-xs text-slate-300 italic font-medium"></p>
+        </section>
+
+        <section id="chart-section" class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg hidden">
+            <div class="w-full h-44">
+                <canvas id="wealthChart"></canvas>
+            </div>
+        </section>
+
+        <section id="portfolio-manager-section" class="space-y-4">
+            <h2 class="text-xs font-black text-slate-300 uppercase tracking-wider px-1 flex items-center gap-1.5">
+                <i data-lucide="sliders" class="w-4 h-4 text-indigo-400"></i> Krok 3: Nastavení vnitřních aktiv (Vždy 100 %)
+            </h2>
+
+            <div class="grid grid-cols-3 gap-2">
+                <button onclick="switchPortfolioTab('p3')" id="tab-btn-p3" class="py-2 rounded-xl text-xs font-bold border border-blue-500 bg-blue-500/10 text-blue-400 transition-all">Cíl 3 roky <span class="block text-[10px] opacity-70" id="tab-status-p3">0%</span></button>
+                <button onclick="switchPortfolioTab('p5')" id="tab-btn-p5" class="py-2 rounded-xl text-xs font-bold border border-slate-800 bg-slate-900 text-slate-400 transition-all">Cíl 5 let <span class="block text-[10px] opacity-70" id="tab-status-p5">0%</span></button>
+                <button onclick="switchPortfolioTab('p10')" id="tab-btn-p10" class="py-2 rounded-xl text-xs font-bold border border-slate-800 bg-slate-900 text-slate-400 transition-all">Cíl 10 let <span class="block text-[10px] opacity-70" id="tab-status-p10">0%</span></button>
+            </div>
+
+            <div id="assets-sliders-container" class="space-y-3 bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-xl"></div>
+        </section>
+
+        <section id="game-over" class="hidden bg-slate-900 border-2 border-indigo-500/50 rounded-2xl p-6 text-center space-y-5 shadow-2xl">
+            <div class="inline-flex bg-indigo-600/20 p-3 rounded-full border border-indigo-500/30"><i data-lucide="trophy" class="w-8 h-8 text-indigo-400"></i></div>
+            <h2 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-emerald-400">SIMULACE DOKONČENA!</h2>
+            <div id="final-results" class="space-y-2.5 text-left bg-slate-950/80 p-4 rounded-xl border border-slate-800 text-xs shadow-inner"></div>
+            <button onclick="window.location.reload()" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2"><i data-lucide="rotate-ccw" class="w-4 h-4"></i> Spustit znovu</button>
+        </section>
+
+    </main>
+
+    <footer id="action-bar" class="fixed bottom-0 left-0 right-0 bg-slate-900/90 backdrop-blur border-t border-slate-800/80 p-4 shadow-2xl z-40">
+        <div class="max-w-md mx-auto">
+            <button id="next-turn-btn" onclick="playTurn()" disabled class="w-full bg-slate-800 text-slate-500 font-bold py-4 rounded-xl text-center text-xs uppercase tracking-wider flex items-center justify-center gap-2 border border-slate-800">
+                Dokončete nastavení
+            </button>
+        </div>
+    </footer>
+
+    <script>
+        const MAX_TURNS = 10;
+        let currentTurn = 0;
+        let currentAvailableBudget = 50000;
+
+        let historyLabels = [];
+        let historyTotalWealth = [];
+        let historyOwnDeposits = [];
+        let chartInstance = null;
+        let activeTab = 'p3';
+
+        const portfolios = {
+            p3: { name: "Cíl 3 roky", wealth: 0, ownDeposits: 0, target: 140000, nextCashflow: 0 },
+            p5: { name: "Cíl 5 let", wealth: 0, ownDeposits: 0, target: 180000, nextCashflow: 0 },
+            p10: { name: "Cíl 10 let", wealth: 0, ownDeposits: 0, target: 300000, nextCashflow: 0 }
+        };
+
+        const assetTemplates = [
+            { id: "world_etf", name: "ETF Světové Akcie", baseReturn: 0.075, volatility: 0.14, color: "#3b82f6", category: "equity" },
+            { id: "sp500", name: "S&P 500 (US Akcie)", baseReturn: 0.090, volatility: 0.17, color: "#60a5fa", category: "equity" },
+            { id: "bonds", name: "Globální Dluhopisy", baseReturn: 0.035, volatility: 0.04, color: "#10b981", category: "bond" },
+            { id: "commodities", name: "Komoditní Mix", baseReturn: 0.045, volatility: 0.19, color: "#f59e0b", category: "commodity" },
+            { id: "reit", name: "REIT (Nemovitosti)", baseReturn: 0.060, volatility: 0.11, color: "#ec4899", category: "property" },
+            { id: "savings", name: "Spořicí účet", baseReturn: 0.025, volatility: 0.005, color: "#8b5cf6", category: "safe" },
+            { id: "cash", name: "Hotovost", baseReturn: 0.000, volatility: 0.000, color: "#64748b", category: "safe" }
+        ];
+
+        Object.keys(portfolios).forEach(k => {
+            portfolios[k].assets = assetTemplates.map(a => ({ ...a, pct: 0 }));
+            portfolios[k].assets.find(a => a.id === 'cash').pct = 100;
+        });
+
+        // Scénáře: 9. a 10. rok jsou upravené pro edukativní šok
+        const marketScenarios = {
+            1: { text: "Ekonomika stabilně roste. Úrokové sazby klesají. Ideální čas budovat základy.", trend: 1.05 },
+            2: { text: "Technologická rally! Akcie letí strmě vzhůru, indexy přepisují historická maxima.", trend: 1.25 },
+            3: { text: "Trh mírně zpomaluje, ale stabilní dividendové tituly drží hodnotu portfolií.", trend: 1.01 },
+            4: { text: "Skvělé hospodářské výsledky firem. Globální trhy hlásí bezproblémový růst.", trend: 1.12 },
+            5: { text: "Stagnace. Indexy přešlapují na místě, investoři čekají na nové impulsy.", trend: 0.97 },
+            6: { text: "Mírné oživení trhů tažené spotřebou domácností a technologickým sektorem.", trend: 1.08 },
+            7: { text: "Rozmach automatizace posílá americké indexy do dalšího silného plusu.", trend: 1.18 },
+            8: { text: "Býčí trh pokračuje. Všichni mluví o investování, na trzích vládne stoprocentní optimismus.", trend: 1.15 },
+            9: { text: "💥 ČERNÁ LABUŤ! Praskla obří spekulativní bublina. Akcie zažívají masivní plošný výprodej a padají o 40 %! Dluhopisy odepisují 10 %. Jedině komodity drží růst o 10 %.", trend: "CRISIS_YEAR" },
+            10: { text: "📉 KRIZE POKRAČUJE! Recese se přelévá do reálné ekonomiky. Akcie padají o dalších 40 %, dluhopisy klesají o 10 %. Komodity opět rostou o 10 % jako bezpečný přístav.", trend: "CRISIS_YEAR" }
+        };
+
+        // ==========================================
+        // DYNAMICKÁ GENERACE KROKU 1 (ROZPOČET)
+        // ==========================================
+        function renderBudgetSetup() {
+            const container = document.getElementById("setup-control-container");
+            const badge = document.getElementById("setup-calc-badge");
+            const title = document.getElementById("setup-title");
+
+            if (currentTurn === 0) {
+                title.innerHTML = `<i data-lucide="party-popper" class="w-4 h-4 text-amber-400"></i> Krok 1: Počáteční kapitál (Rok 0)`;
+                badge.innerText = `Celkem na startu: ${currentAvailableBudget.toLocaleString()} Kč`;
+                container.innerHTML = `
+                    <p class="text-[11px] text-slate-400">Nastavte jednorázovou částku, se kterou student do hry vstoupí:</p>
+                    <input type="range" id="budget-slider" min="10000" max="300000" step="5000" value="${currentAvailableBudget}" 
+                           class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none accent-amber-500"
+                           oninput="onBudgetSliderMove(this.value)">
+                `;
+            } else {
+                title.innerHTML = `<i data-lucide="briefcase" class="w-4 h-4 text-amber-400"></i> Krok 1: Nové měsíční úspory (Rok ${currentTurn})`;
+                let monthly = currentAvailableBudget / 12;
+                badge.innerText = `${monthly.toLocaleString()} Kč / měsíc`;
+                container.innerHTML = `
+                    <p class="text-[11px] text-slate-400">Kolik zvládne hrač odkládat z výplaty? (Roční vklad: <b class="text-amber-400">${currentAvailableBudget.toLocaleString()} Kč</b>):</p>
+                    <input type="range" id="budget-slider" min="0" max="25000" step="500" value="${monthly}" 
+                           class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none accent-amber-500"
+                           oninput="onBudgetSliderMove(this.value, true)">
+                `;
+            }
+            syncCashflowLimits();
+            lucide.createIcons();
+        }
+
+        function onBudgetSliderMove(val, isMonthly = false) {
+            let numericVal = parseInt(val) || 0;
+            if (isMonthly) {
+                currentAvailableBudget = numericVal * 12;
+                document.getElementById("setup-calc-badge").innerText = `${numericVal.toLocaleString()} Kč / měsíc`;
+            } else {
+                currentAvailableBudget = numericVal;
+                document.getElementById("setup-calc-badge").innerText = `Celkem na startu: ${numericVal.toLocaleString()} Kč`;
+            }
+            syncCashflowLimits();
+        }
+
+        function syncCashflowLimits() {
+            ['cash-p3', 'cash-p5', 'cash-p10'].forEach(id => {
+                const el = document.getElementById(id);
+                el.max = currentAvailableBudget;
+                el.value = 0;
+            });
+            Object.keys(portfolios).forEach(k => portfolios[k].nextCashflow = 0);
+            
+            document.getElementById("p3-cash-val").innerText = "0 Kč";
+            document.getElementById("p5-cash-val").innerText = "0 Kč";
+            document.getElementById("p10-cash-val").innerText = "0 Kč";
+            document.getElementById("cashflow-remaining").innerText = `Zbývá: ${currentAvailableBudget.toLocaleString()} Kč`;
+            
+            updateUI();
+        }
+
+        // ==========================================
+        // KROK 2: ROZDĚLENÍ PENĚZ DO CÍLŮ
+        // ==========================================
+        function allocateCashflow() {
+            let c3 = parseInt(document.getElementById("cash-p3").value) || 0;
+            let p5 = parseInt(document.getElementById("cash-p5").value) || 0;
+            let p10 = parseInt(document.getElementById("cash-p10").value) || 0;
+
+            let totalAllocated = c3 + p5 + p10;
+
+            if (totalAllocated > currentAvailableBudget) {
+                let overage = totalAllocated - currentAvailableBudget;
+                c3 = Math.max(0, c3 - overage);
+                document.getElementById("cash-p3").value = c3;
+                totalAllocated = c3 + p5 + p10;
+            }
+
+            portfolios.p3.nextCashflow = c3;
+            portfolios.p5.nextCashflow = p5;
+            portfolios.p10.nextCashflow = p10;
+
+            document.getElementById("p3-cash-val").innerText = `${c3.toLocaleString()} Kč`;
+            document.getElementById("p5-cash-val").innerText = `${p5.toLocaleString()} Kč`;
+            document.getElementById("p10-cash-val").innerText = `${p10.toLocaleString()} Kč`;
+            
+            let remaining = currentAvailableBudget - totalAllocated;
+            document.getElementById("cashflow-remaining").innerText = `Zbývá: ${remaining.toLocaleString()} Kč`;
+            
+            updateUI();
+        }
+
+        // ==========================================
+        // KROK 3: NÁSTROJE PORTFOLIA (ZÁLOŽKY)
+        // ==========================================
+        function switchPortfolioTab(tabKey) {
+            activeTab = tabKey;
+            ['p3', 'p5', 'p10'].forEach(k => {
+                const btn = document.getElementById(`tab-btn-${k}`);
+                btn.className = (k === tabKey) 
+                    ? "py-2 rounded-xl text-xs font-bold border border-blue-500 bg-blue-500/10 text-blue-400 transition-all"
+                    : "py-2 rounded-xl text-xs font-bold border border-slate-800 bg-slate-900 text-slate-400 transition-all";
+            });
+            renderAssetSliders();
+        }
+
+        function renderAssetSliders() {
+            const container = document.getElementById("assets-sliders-container");
+            container.innerHTML = "";
+            const currentPortfolio = portfolios[activeTab];
+
+            currentPortfolio.assets.forEach(asset => {
+                const div = document.createElement("div");
+                div.className = "space-y-1.5 bg-slate-950/60 p-3 rounded-xl border border-slate-800/60";
+                div.innerHTML = `
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="font-semibold text-slate-300 flex items-center gap-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full inline-block" style="background-color: ${asset.color}"></span>
+                            ${asset.name}
+                        </span>
+                        <span id="asset-pct-${asset.id}" class="font-black px-2 py-0.5 bg-slate-900 rounded border border-slate-800 text-indigo-400 min-w-[45px] text-right">${asset.pct} %</span>
+                    </div>
+                    <input type="range" min="0" max="100" value="${asset.pct}" 
+                           class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                           oninput="onAssetSliderChange('${asset.id}', this.value)">
+                `;
+                container.appendChild(div);
+            });
+            updateUI();
+        }
+
+        function onAssetSliderChange(assetId, val) {
+            const p = portfolios[activeTab];
+            const targetAsset = p.assets.find(a => a.id === assetId);
+            targetAsset.pct = parseInt(val) || 0;
+
+            let total = p.assets.reduce((sum, a) => sum + a.pct, 0);
+
+            if (total > 100) {
+                let excess = total - 100;
+                let siblings = p.assets.filter(a => a.id !== assetId && a.pct > 0);
+                while (excess > 0 && siblings.length > 0) {
+                    siblings.forEach(sibling => {
+                        if (sibling.pct > 0 && excess > 0) {
+                            sibling.pct--;
+                            excess--;
+                        }
+                    });
+                    siblings = p.assets.filter(a => a.id !== assetId && a.pct > 0);
+                }
+            }
+
+            p.assets.forEach(asset => {
+                const badge = document.getElementById(`asset-pct-${asset.id}`);
+                if(badge) badge.innerText = `${asset.pct} %`;
+            });
+            updateUI();
+        }
+
+        // ==========================================
+        // REFRESH STAVU A INTERFEJSU
+        // ==========================================
+        function updateUI() {
+            let totalWealthSum = Object.values(portfolios).reduce((sum, p) => sum + p.wealth, 0);
+            let totalDepositsSum = Object.values(portfolios).reduce((sum, p) => sum + p.ownDeposits, 0);
+            
+            if(currentTurn === 0) {
+                totalWealthSum = Object.values(portfolios).reduce((sum, p) => sum + p.nextCashflow, 0);
+                totalDepositsSum = totalWealthSum;
+            }
+
+            let totalProfitSum = totalWealthSum - totalDepositsSum;
+            let profitPct = totalDepositsSum > 0 ? (totalProfitSum / totalDepositsSum) * 100 : 0;
+
+            document.getElementById("total-wealth").innerText = `${Math.round(totalWealthSum).toLocaleString('cs-CZ')} Kč`;
+            document.getElementById("total-deposits").innerText = `${Math.round(totalDepositsSum).toLocaleString('cs-CZ')} Kč`;
+            
+            const profitBadge = document.getElementById("total-profit");
+            if(totalProfitSum >= 0) {
+                profitBadge.className = "text-xs font-black text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/20";
+                profitBadge.innerText = `+${Math.round(totalProfitSum).toLocaleString('cs-CZ')} Kč (+${profitPct.toFixed(1)} %)`;
+            } else {
+                profitBadge.className = "text-xs font-black text-rose-400 bg-rose-500/10 px-2 py-1 rounded border border-rose-500/20";
+                profitBadge.innerText = `${Math.round(totalProfitSum).toLocaleString('cs-CZ')} Kč (${profitPct.toFixed(1)} %)`;
+            }
+
+            let totalCashAllocated = Object.values(portfolios).reduce((sum, p) => sum + p.nextCashflow, 0);
+            let cashflowValid = (totalCashAllocated === currentAvailableBudget) && (currentAvailableBudget > 0);
+
+            let assetsValid = true;
+            Object.keys(portfolios).forEach(k => {
+                let pTotalPct = portfolios[k].assets.reduce((sum, a) => sum + a.pct, 0);
+                const tabBadge = document.getElementById(`tab-status-${k}`);
+                if(tabBadge) tabBadge.innerText = `${pTotalPct} %`;
+                if(pTotalPct !== 100) assetsValid = false;
+            });
+
+            const btn = document.getElementById("next-turn-btn");
+            if (cashflowValid && assetsValid) {
+                btn.disabled = false;
+                btn.className = "w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black py-4 rounded-xl text-center cursor-pointer text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 border border-blue-500/30";
+                btn.innerHTML = currentTurn === 0 ? "Potvrdit startovní kapitál a spustit hru 🚀" : `Uzamknout a vyhodnotit rok ${currentTurn} 🔒`;
+            } else {
+                btn.disabled = true;
+                btn.className = "w-full bg-slate-900 text-slate-500 font-bold py-4 rounded-xl text-center text-xs uppercase tracking-wider flex items-center justify-center gap-2 border border-slate-800";
+                btn.innerHTML = !cashflowValid ? "Rozdělte celou částku z Kroku 1" : "Všechny cíle musí mít alokaci vnitřních aktiv 100 %";
+            }
+
+            document.getElementById("turn-badge").innerHTML = `<i data-lucide="calendar" class="w-3.5 h-3.5 text-blue-400"></i> <span>Rok: ${currentTurn} / ${MAX_TURNS}</span>`;
+            lucide.createIcons();
+        }
+
+        // ==========================================
+        // LOGIKA VÝPOČTU KOLA (DYNAMICKÁ KRIZE 9. A 10. ROK)
+        // ==========================================
+        function playTurn() {
+            const nextYearIndex = currentTurn + 1;
+            const scenario = marketScenarios[nextYearIndex];
+
+            // Zpracování kapitálu z pák
+            Object.keys(portfolios).forEach(k => {
+                let p = portfolios[k];
+                p.wealth += p.nextCashflow;
+                p.ownDeposits += p.nextCashflow;
+                p.nextCashflow = 0;
+
+                // Výpočet zhodnocení (pokud nejsme v nultém roce)
+                if (currentTurn > 0) {
+                    let pReturnSum = 0;
+                    p.assets.forEach(asset => {
+                        if (asset.pct > 0) {
+                            let finalAssetReturn = 0;
+
+                            // TVÁ KRIZE: Šikovně ohnutá vnitřní logika výnosů na základě zadání
+                            if (nextYearIndex === 9 || nextYearIndex === 10) {
+                                if (asset.category === "equity") {
+                                    finalAssetReturn = -0.40; // Akcie padají o 40 %
+                                } else if (asset.category === "bond") {
+                                    finalAssetReturn = -0.10; // Dluhopisy padají o 10 %
+                                } else if (asset.category === "commodity") {
+                                    finalAssetReturn = 0.10;  // Komodity rostou o 10 %
+                                } else if (asset.category === "property") {
+                                    finalAssetReturn = -0.15; // Reality mírně klesají s trhem
+                                } else if (asset.category === "safe") {
+                                    finalAssetReturn = asset.baseReturn; // Spořák a hotovost drží jistotu
+                                }
+                            } else {
+                                // Standardní 1. až 8. generované kolo přes tržní trend a běžný šum
+                                const trendFactor = scenario ? scenario.trend : 1.0;
+                                const noise = (Math.random() - 0.5) * asset.volatility;
+                                finalAssetReturn = (asset.baseReturn * trendFactor) + noise;
+                            }
+                            
+                            const allocatedCapital = p.wealth * (asset.pct / 100);
+                            pReturnSum += allocatedCapital * finalAssetReturn;
+                        }
+                    });
+                    p.wealth += pReturnSum;
+                    if (p.wealth < 0) p.wealth = 0;
+                }
+            });
+
+            currentTurn++;
+
+            // Zápis do grafické historie
+            let totalWealthSum = Object.values(portfolios).reduce((sum, p) => sum + p.wealth, 0);
+            let totalDepositsSum = Object.values(portfolios).reduce((sum, p) => sum + p.ownDeposits, 0);
+
+            if(currentTurn === 1) {
+                historyLabels.push("Začátek");
+                historyTotalWealth.push(historyTotalWealth.length === 0 ? totalWealthSum : historyTotalWealth[0]);
+                historyOwnDeposits.push(historyOwnDeposits.length === 0 ? totalDepositsSum : historyOwnDeposits[0]);
+            }
+
+            historyTotalWealth.push(Math.round(totalWealthSum));
+            historyOwnDeposits.push(Math.round(totalDepositsSum));
+            historyLabels.push(`Rok ${currentTurn}`);
+
+            // Zobrazení novinek (v 9. a 10. roce dostane box červený urgentní rám)
+            const newsBox = document.getElementById("news-box");
+            if (scenario && currentTurn <= MAX_TURNS) {
+                newsBox.classList.remove("hidden");
+                document.getElementById("news-year").innerText = currentTurn;
+                document.getElementById("news-text").innerText = scenario.text;
+                
+                if(currentTurn === 9 || currentTurn === 10) {
+                    newsBox.className = "bg-rose-950/40 border border-rose-500 rounded-2xl p-4 shadow-lg relative overflow-hidden text-rose-200";
+                } else {
+                    newsBox.className = "bg-slate-900 border border-amber-500/30 rounded-2xl p-4 shadow-lg relative overflow-hidden";
+                }
+            } else {
+                newsBox.classList.add("hidden");
+            }
+
+            renderChart();
+
+            if (currentTurn > MAX_TURNS) {
+                renderEndGame();
+            } else {
+                currentAvailableBudget = 2000 * 12;
+                renderBudgetSetup();
+                switchPortfolioTab(activeTab);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+
+        // ==========================================
+        // GRAPH RENDERING
+        // ==========================================
+        function renderChart() {
+            document.getElementById("chart-section").classList.remove("hidden");
+            const ctx = document.getElementById('wealthChart').getContext('2d');
+            if (chartInstance) chartInstance.destroy();
+
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: historyLabels,
+                    datasets: [
+                        {
+                            label: 'Celkový majetek (Kč)',
+                            data: historyTotalWealth,
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.05)',
+                            borderWidth: 2.5,
+                            fill: true,
+                            tension: 0.15
+                        },
+                        {
+                            label: 'Vlastní vklady (Kč)',
+                            data: historyOwnDeposits,
+                            borderColor: '#64748b',
+                            borderDash: [5, 5],
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: true, labels: { color: '#94a3b8', font: { size: 9 } } } },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 9 } } },
+                        y: { grid: { color: '#1e293b' }, ticks: { color: '#64748b', font: { size: 9 } } }
+                    }
+                }
+            });
+        }
+
+        // ==========================================
+        // GAME OVER WITH DETAILED ANALYSIS
+        // ==========================================
+        function renderEndGame() {
+            document.getElementById("setup-income-section").classList.add("hidden");
+            document.getElementById("cashflow-allocator").classList.add("hidden");
+            document.getElementById("portfolio-manager-section").classList.add("hidden");
+            document.getElementById("action-bar").classList.add("hidden");
+            document.getElementById("news-box").classList.add("hidden");
+            document.getElementById("game-over").classList.remove("hidden");
+
+            updateUI();
+
+            const finalResults = document.getElementById("final-results");
+            finalResults.innerHTML = `
+                <h3 class="font-bold text-center text-sm text-slate-200 mb-1 uppercase">Finální analýza cílů</h3>
+                <p class="text-[10px] text-center text-slate-400 mb-4">Krize v 9. a 10. roce prověřila tvou opatrnost a diverzifikaci!</p>
+            `;
+
+            Object.keys(portfolios).forEach(k => {
+                let p = portfolios[k];
+                let success = p.wealth >= p.target ? "<span class='text-emerald-400 font-bold'>🎉 SPLNĚNO</span>" : "<span class='text-rose-400 font-bold'>❌ NESPLNĚNO</span>";
+                let pProfit = p.wealth - p.ownDeposits;
+                
+                finalResults.innerHTML += `
+                    <div class="p-3 rounded-lg bg-slate-900 border border-slate-800 mb-2 space-y-1">
+                        <div class="flex justify-between font-bold text-slate-200"><span>${p.name} (Cíl ${p.target.toLocaleString()} Kč)</span> <span>${success}</span></div>
+                        <div class="flex justify-between text-[11px] text-slate-400">
+                            <span>Konečný stav: <b>${Math.round(p.wealth).toLocaleString()} Kč</b></span>
+                            <span>Trh: <b class="${pProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${Math.round(pProfit).toLocaleString()} Kč</b></span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            lucide.createIcons();
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        }
+
+        renderBudgetSetup();
+        switchPortfolioTab('p3');
+    </script>
+</body>
+</html>
